@@ -36,10 +36,11 @@ export default Ember.Component.extend({
 
       var arraySize = firstLine.split(' ');
       var rows = parseInt(arraySize[0]);
-      // Ember.assert('Rows length must be the same as the first number in first line', rows === lines.get('length'));
 
       var cols = parseInt(arraySize[1]);
       var elevations=[];
+      
+      //Fastest way to create the matrix
       var currentRow=[];
       var currentValue='';
       for(var i=firstLineIndex+1;i<model.length;i++){
@@ -48,6 +49,7 @@ export default Ember.Component.extend({
           currentRow.push(parseInt(currentValue));
           currentValue='';
           if(curChar==='\n'){
+            Ember.assert('Row %@ must have %@ elevations and has %@'.fmt(elevations.get('length'), cols, currentRow.get('length')), cols === currentRow.get('length'));
             elevations.push(currentRow);
             currentRow=[];
           }
@@ -55,12 +57,18 @@ export default Ember.Component.extend({
           currentValue+=curChar;
         }
       }
-      currentRow.push(parseInt(currentValue));
-      elevations.push(currentRow);
+      if(currentValue.trim().length>0){
+        currentRow.push(parseInt(currentValue));
+      }
+      if(currentRow.length>0){
+        Ember.assert('Row %@ must have %@ elevations and has %@'.fmt(elevations.get('length'), cols, currentRow.get('length')), cols === currentRow.get('length'));
+        elevations.push(currentRow);
+      }
+      Ember.assert('Rows length must be the same as the first number in first line', rows === elevations.get('length'));
+      // END CREATION MATRIX
 
       // var elevations = lines.map(function(line, row) {
       //   var elevationsInRow = line.trim().split(' ');
-      //   Ember.assert('Row %@ must have %@ elevations and have %@'.fmt(row, cols, elevationsInRow.get('length')), cols === elevationsInRow.get('length'));
 
       //   return elevationsInRow.map(function(elevation, col) {
       //     return parseInt(elevation);
@@ -145,7 +153,7 @@ export default Ember.Component.extend({
       candidates.addObject(this._bestPathForCell(row - 1, col, value));
     }
 
-    if (row < cols - 1) { //down
+    if (row < rows - 1) { //down
       candidates.addObject(this._bestPathForCell(row + 1, col, value));
     }
 
@@ -153,7 +161,7 @@ export default Ember.Component.extend({
       candidates.addObject(this._bestPathForCell(row, col - 1, value));
     }
 
-    if (col < rows - 1) { //right
+    if (col < cols - 1) { //right
       candidates.addObject(this._bestPathForCell(row, col + 1, value));
     }
 
