@@ -1,5 +1,20 @@
 # Skiing-singapore
 
+Solution to get the longest and steepest path in a number matrix.
+
+Javascript is not a fast looping language, but using web workers you can get a good performance.
+
+* [See the app](http://sergiferran.webcindario.com/skiingsingapore/index.html)
+* [Linkedin Profile](https://www.linkedin.com/pub/sergi-ferran-parera/26/643/a20)
+
+Technologies used:
+
+* Ember-CLI
+* EmberJs
+* Web Workers
+* Bootstrap
+* LESS
+
 This README outlines the details of collaborating on this Ember application.
 A short introduction of this app could easily go here.
 
