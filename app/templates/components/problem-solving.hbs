@@ -1,11 +1,56 @@
-<h3>Write, drag or select a file to test</h3>
+<div class="row">
+	<div class="col-sm-12">
+	<div class="panel panel-primary">
+		<div class="panel-heading">Write, paste, or choose your elevation map.</div>
+		<div class="panel-body">
+			<div class="btn-group" role="group" aria-label="...">
+			  <button type="button" {{action 'emptyMap'}} class="btn btn-default">Empty</button>
+			  <button type="button" {{action 'loadMap' 0}} class="btn btn-default">Example 4x4</button>
+			  <button type="button" {{action 'loadMap' 1}} class="btn btn-default">Wrong map</button>
+			  <button type="button" {{action 'loadMap' 2}} class="btn btn-default">Not a number in map</button>
+			  <button type="button" {{action 'loadMap' 3}} class="btn btn-default">1000x1000 challenge</button>
+			</div>
+			<div>
+				{{textarea rows="15" value=model}}
+			</div>
+		</div>
+		<div class="panel-footer">Change the map on real time and will be checked on the fly</div>
+		<div class="panel-footer"><i>* Pasting a big amount of data is slow, so don't blame to me :p</i></div>
+	</div>
+	</div>
+	{{#if model}}
+	<div class="col-sm-12">
+	<div class="panel panel-primary">
+		<div class="panel-heading">Solution!</div>
+		<div class="panel-body">
+			{{#if error}}
+				<div class="alert alert-danger" role="alert">
+					{{error}}
+				</div>
+			{{else}}
+				<div class="progress">
+				  <div class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" {{bind-attr style="statusWidth"}}>
+				    <span>{{status}}% Complete</span>
+				  </div>
+				</div>
+				{{#if solution}}
+				<div class="alert alert-success" role="alert">
+					<div><span class="label label-success">Path {{solution.length}} items</span> <b>{{solution.path}}</b></div>
+					<div><span class="label label-success">Start</span> Row: <b>{{base-zero solution.items.firstObject.row}}</b>,  Col: <b>{{base-zero solution.items.firstObject.col}}</b></div>
+					<div><span class="label label-success">End</span> Row: <b>{{base-zero solution.items.lastObject.row}}</b>,  Col: <b>{{base-zero solution.items.lastObject.col}}</b></div>
+					<div><span class="label label-success">Steep drop</span> <b>{{solution.steep}}</b>: From <b>{{solution.items.firstObject.value}}</b> to <b>{{solution.items.lastObject.value}}</b></div>
+					<div><span class="label label-success">Mail to send</span> <a href="mailto:{{solution.length}}{{solution.steep}}@redmart.com"> <b>{{solution.length}}{{solution.steep}}</b> at redmart dot com</a></div>
+				</div>
+				{{/if}}
+			{{/if}}
 
-{{textarea cols="100" rows="20" value=model}}
-
-<div>
-  {{#if error}}
-    {{error}}
-  {{else}}
-    {{{solution}}}
-  {{/if}}
+			{{#if cancelVisible}}
+				<button {{action 'cancelWorker'}} class="btn btn-danger">Cancel</button>
+			{{else}}
+				<button {{action 'startWorker'}} class="btn btn-default">Restart</button>
+			{{/if}}
+		</div>
+	</div>
+	</div>
+	{{/if}}
 </div>

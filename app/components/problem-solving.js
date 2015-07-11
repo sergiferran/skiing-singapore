@@ -1,5 +1,4 @@
 import Ember from 'ember';
-import Elevation from 'skiing-singapore/utils/elevation';
 
 export default Ember.Component.extend({
   model: null,
@@ -7,191 +6,90 @@ export default Ember.Component.extend({
   error: null,
 
   solution: null,
+  status: null,
+  statusWidth: function(){
+    return 'width: %@%'.fmt(this.get('status'));
+  }.property('status'),
 
-  steep: 0,
-  length: 0,
+  _worker: null,
 
-  _cache: null,
-  _numRows: null,
-  _numCols: null,
-  _data: null,
+  testModels: [],
+
+  cancelVisible: false,
 
 
-  setTestModel: function() {
-    this.set('model', '4 4\n4 8 7 3\n2 5 9 3\n6 3 2 5\n4 4 1 6');
+  loadTestModels: function() {
+    var testModels = [];
+    testModels.addObject('4 4\n4 8 7 3\n2 5 9 3\n6 3 2 5\n4 4 1 6');
+    testModels.addObject('4 4\n4 8 7 3\n2 5 9 3 6\n6 3 2 5\n4 4 1 6');
+    testModels.addObject('4 4\n4 8 7 3\n2 5 9 a\n6 3 2 5\n4 4 1 6');
+    Ember.$.ajax('/assets/map.txt').then(function(data){
+      testModels.addObject(data);
+    });
+    this.set('testModels', testModels);
   }.on('init'),
 
   solveProblem: function() {
     var model = this.get('model');
-
-    var error = null;
-    var solution = null;
+    this.set('error', null);
+    this.set('status', null);
+    this.set('solution', null);
 
     try {
-      Ember.assert('You need to pass data', !Ember.isBlank(model));
+      Ember.assert('You need to pass data', !Ember.isBlank(model)); 
+    } catch (e) {
+      this.set('error', e);
+    }
 
-      var firstLineIndex= model.indexOf('\n');
-      var firstLine = model.substring(0,firstLineIndex).trim();
-      Ember.assert('First line must be the array size. e.g: 4 4.', firstLine.match(/^\d+ \d+$/));
+    var worker=this.get('_worker');
+    if(worker){
+      worker.terminate();
+    }
+    worker = new window.Worker('assets/workers/findBestPath.js');
 
-      var arraySize = firstLine.split(' ');
-      var rows = parseInt(arraySize[0]);
-
-      var cols = parseInt(arraySize[1]);
-      var elevations=[];
-      
-      //Fastest way to create the matrix
-      var currentRow=[];
-      var currentValue='';
-      for(var i=firstLineIndex+1;i<model.length;i++){
-        var curChar=model[i];
-        if(curChar===' ' || curChar==='\n'){
-          currentRow.push(parseInt(currentValue));
-          currentValue='';
-          if(curChar==='\n'){
-            Ember.assert('Row %@ must have %@ elevations and has %@'.fmt(elevations.get('length'), cols, currentRow.get('length')), cols === currentRow.get('length'));
-            elevations.push(currentRow);
-            currentRow=[];
-          }
-        }else{
-          currentValue+=curChar;
-        }
-      }
-      if(currentValue.trim().length>0){
-        currentRow.push(parseInt(currentValue));
-      }
-      if(currentRow.length>0){
-        Ember.assert('Row %@ must have %@ elevations and has %@'.fmt(elevations.get('length'), cols, currentRow.get('length')), cols === currentRow.get('length'));
-        elevations.push(currentRow);
-      }
-      Ember.assert('Rows length must be the same as the first number in first line', rows === elevations.get('length'));
-      // END CREATION MATRIX
-
-      // var elevations = lines.map(function(line, row) {
-      //   var elevationsInRow = line.trim().split(' ');
-
-      //   return elevationsInRow.map(function(elevation, col) {
-      //     return parseInt(elevation);
-      //   });
-      // });
-
-      this.setProperties({
-        _numRows: rows,
-        _numCols: cols,
-        _cache: {},
-        _data: elevations
-      });
-
-      var bestPathForCell = Ember.run.bind(this, this._bestPathForCell);
-      var bestPathComparator = Ember.run.bind(this, this._bestPathBetweenTwo);
-
-      window.console.debug('empiezo a calcular');
-      var bestPath = null;
-
-      for(var rowIndex=0; rowIndex< rows; rowIndex++){
-        for(var colIndex=0; colIndex<cols;colIndex++){
-          var pathForCell = bestPathForCell(rowIndex, colIndex);
-          bestPath= bestPathComparator(bestPath, pathForCell);
-        }
-      }
-
-      window.console.debug(bestPath);
-
-      var colValue = null;
-
-      solution=bestPath.mapBy('value').join(' - ');
+    worker.addEventListener("message", Ember.run.bind(this, function (oEvent) {
+      var data = JSON.parse(oEvent.data);
+      if(data.error){
+        this.set('error', data.error);
+      }else if(data.status){
+        this.set('status', data.status);        
+      }else if(data.path){
+        var solution=data.path;
 
       solution+='</br>';
       
-      solution+='length: %@, steep drop: %@'.fmt(bestPath.get('length'), bestPath.get('firstObject.value') - bestPath.get('lastObject.value'));
+      solution+='length: '+data.length+', steep drop: '+data.steep;
+        this.set('solution', data);        
+      } 
+    }), false);
 
+    worker.postMessage(model);
 
-      // solution = elevations.reduce(function(memoRow, row, rowIndex) {
-      //   return row.reduce(function(memoCol, col, colIndex) {
-      //     colValue = col;
-      //     if (bestPath.filterBy('row', rowIndex).anyBy('col', colIndex)) {
-      //       colValue = '<b>%@</b>'.fmt(col);
-      //     }
-      //     return '%@ %@'.fmt(memoCol, colValue);
-      //   }, memoRow) + '<br>';
-      // }, '');
-
-
-    } catch (e) {
-      error = e;
-      throw e;
-    }
-
-    this.setProperties({
-      error: error,
-      solution: solution
-    });
-
+    this.set('_worker', worker);
   }.observes('model'),
 
-  _bestPathForCell: function(row, col, previousValue) {
-    var rows = this.get('_numRows');
-    var cols = this.get('_numCols');
+  cancelVisibleObserver: function(){
+    this.set('cancelVisible', !(Ember.isPresent(this.get('solution')) || Ember.isPresent(this.get('error'))));
+  }.observes('solution', 'error'),
 
-    var value = this.get('_data.%@.%@'.fmt(row, col));
-
-    if ((!previousValue && value < this.get('steep')) || previousValue <= value) {
-      return null;
+  actions: {
+    cancelWorker: function(){
+      var worker=this.get('_worker');
+      if(worker){
+        worker.terminate();
+        this.set('_worker', null);
+        this.set('error', 'You have cancelled the process, change the data to restart or press Start button');
+      }
+    },
+    startWorker :function(){
+      this.solveProblem();
+    }, 
+    emptyMap: function(){
+      this.set('model', null);
+    }, 
+    loadMap: function(index){
+      this.set('model', this.get('testModels').objectAt(index));
     }
-
-    var cache = this.get('_cache');
-
-    var cacheKey = 'r%@c%@'.fmt(row, col);
-    var pathCached = cache[cacheKey];
-    if (pathCached) {
-      return pathCached;
-    }
-
-    var candidates = [];
-
-    if (row > 0) { //up
-      candidates.addObject(this._bestPathForCell(row - 1, col, value));
-    }
-
-    if (row < rows - 1) { //down
-      candidates.addObject(this._bestPathForCell(row + 1, col, value));
-    }
-
-    if (col > 0) { //left
-      candidates.addObject(this._bestPathForCell(row, col - 1, value));
-    }
-
-    if (col < cols - 1) { //right
-      candidates.addObject(this._bestPathForCell(row, col + 1, value));
-    }
-
-    var candidatePath = candidates.compact().reduce(Ember.run.bind(this, this._bestPathBetweenTwo), null) || [];
-
-    var elevation = Elevation.create({
-      row: row,
-      col: col,
-      value: value
-    });
-
-    var bestPath = [elevation];
-    bestPath.addObjects(candidatePath);
-    cache[cacheKey] = bestPath;
-
-    window.console.debug('bestPath for %@,%@ is %@'.fmt(row, col, bestPath.mapBy('value').join('-')));
-
-    return bestPath;
-  },
-
-  _bestPathBetweenTwo: function(memo, candidate) {
-    if (!candidate) return memo;
-    var lengthCandidate = candidate.get('length');
-    var steepCandidate = candidate.get('firstObject.value') - candidate.get('lastObject.value');
-    if (!memo || memo.get('length') < lengthCandidate || (memo.get('length') === lengthCandidate && (memo.get('firstObject.value') - memo.get('lastObject.value')) < steepCandidate)) {
-      this.set('steep', Math.max(this.get('steep'), steepCandidate));
-      return candidate;
-    }
-    return memo;
-
   }
 
 });

@@ -1,8 +1,15 @@
 /* global require, module */
 
 var EmberApp = require('ember-cli/lib/broccoli/ember-app');
+var pickFiles = require('broccoli-static-compiler');
 
-var app = new EmberApp();
+var app = new EmberApp({
+	lessOptions: {
+	    paths: [
+	      'bower_components/bootstrap/less'
+	    ]
+  	}
+});
 
 // Use `app.import` to add additional libraries to the generated
 // output files.
@@ -17,4 +24,17 @@ var app = new EmberApp();
 // please specify an object with the list of modules as keys
 // along with the exports of each module as its value.
 
-module.exports = app.toTree();
+var workers = pickFiles('workers', {
+  srcDir: '/',
+  files: ['*.js'],
+  destDir: '/assets/workers'
+});
+
+if (process.env.EMBER_ENV === 'production') {
+  workers = require('broccoli-uglify-js')(workers, {
+    mangle: true,
+    compress: true
+  });
+}
+
+module.exports = app.toTree(workers);
